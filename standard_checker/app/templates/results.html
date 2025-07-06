@@ -1,0 +1,526 @@
+{% extends "base.html" %}
+
+{% block title %}結果一覧 - Standard Version Checker{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h2><i class="fas fa-list"></i> 標準規格一覧</h2>
+        {% if filename %}
+            <p class="text-muted">ファイル: {{ filename }}</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- フィルターパネル -->
+<div class="filter-panel">
+    <h5><i class="fas fa-filter"></i> フィルター</h5>
+    <form id="filterForm" method="get">
+        <div class="row">
+            <div class="col-md-3">
+                <label for="statusFilter" class="form-label">ステータス</label>
+                <select id="statusFilter" name="status" class="form-select">
+                    <option value="">すべて</option>
+                    <option value="Active">Active</option>
+                    <option value="Withdrawn">Withdrawn</option>
+                    <option value="Current">Current</option>
+                    <option value="Published">Published</option>
+                    <option value="Superseded">Superseded</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="typeFilter" class="form-label">タイプ</label>
+                <select id="typeFilter" name="type" class="form-select">
+                    <option value="">すべて</option>
+                    <option value="EN">EN</option>
+                    <option value="IEC">IEC</option>
+                    <option value="ISO">ISO</option>
+                    <option value="ISO/IEC">ISO/IEC</option>
+                    <option value="CISPR">CISPR</option>
+                    <option value="ETSI EN">ETSI EN</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="directiveFilter" class="form-label">指令</label>
+                <select id="directiveFilter" name="directive" class="form-select">
+                    <option value="">すべて</option>
+                    <option value="RED">RED 2014/53/EU</option>
+                    <option value="LVD">LVD 2014/35/EU</option>
+                    <option value="EMC">EMC 2014/30/EU</option>
+                    <option value="RoHS">RoHS 2011/65/EU</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="searchFilter" class="form-label">検索</label>
+                <input type="text" id="searchFilter" name="search" class="form-control" placeholder="標準規格番号">
+            </div>
+        </div>
+        <div class="row mt-3">
+            <div class="col-md-6">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="hasVersionFilter" name="has_version">
+                    <label class="form-check-label" for="hasVersionFilter">
+                        バージョン情報あり
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="hasEtsiFilter" name="has_etsi">
+                    <label class="form-check-label" for="hasEtsiFilter">
+                        ETSI情報あり
+                    </label>
+                </div>
+            </div>
+            <div class="col-md-6 text-end">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-search"></i> フィルター適用
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="clearFilters()">
+                    <i class="fas fa-times"></i> クリア
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- 統計情報 -->
+{% if standards %}
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="alert alert-info">
+            <div class="row">
+                <div class="col-md-3">
+                    <strong>総件数:</strong> <span id="totalCount">{{ standards|length }}</span>件
+                </div>
+                <div class="col-md-3">
+                    <strong>EN標準:</strong> <span id="enCount">{{ standards|selectattr('type', 'equalto', 'EN')|list|length }}</span>件
+                </div>
+                <div class="col-md-3">
+                    <strong>IEC標準:</strong> <span id="iecCount">{{ standards|selectattr('type', 'equalto', 'IEC')|list|length }}</span>件
+                </div>
+                <div class="col-md-3">
+                    <strong>その他:</strong> <span id="otherCount">{{ (standards|length) - (standards|selectattr('type', 'equalto', 'EN')|list|length) - (standards|selectattr('type', 'equalto', 'IEC')|list|length) }}</span>件
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- アクションボタン -->
+<div class="row mt-3">
+    <div class="col-md-12">
+        <div class="btn-toolbar" role="toolbar">
+            <div class="btn-group me-2" role="group">
+                <button type="button" class="btn btn-success" onclick="exportData('csv')">
+                    <i class="fas fa-file-csv"></i> CSV出力
+                </button>
+                <button type="button" class="btn btn-success" onclick="exportData('excel')">
+                    <i class="fas fa-file-excel"></i> Excel出力
+                </button>
+                <button type="button" class="btn btn-info" onclick="exportData('json')">
+                    <i class="fas fa-file-code"></i> JSON出力
+                </button>
+            </div>
+            <div class="btn-group me-2" role="group">
+                <button type="button" class="btn btn-warning" onclick="checkAllETSI()">
+                    <i class="fas fa-sync"></i> 全ETSI確認
+                </button>
+                <button type="button" class="btn btn-primary" onclick="selectAll()">
+                    <i class="fas fa-check-square"></i> 全選択
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="selectNone()">
+                    <i class="fas fa-square"></i> 選択解除
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 標準規格テーブル -->
+<div class="row mt-4">
+    <div class="col-md-12">
+        {% if standards %}
+        <div class="table-responsive">
+            <table id="standardsTable" class="table table-striped table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th><input type="checkbox" id="selectAllCheckbox" onchange="toggleAll()"></th>
+                        <th>標準規格番号</th>
+                        <th>タイプ</th>
+                        <th>バージョン</th>
+                        <th>ステータス</th>
+                        <th>指令</th>
+                        <th>ETSI情報</th>
+                        <th>抽出日時</th>
+                        <th>アクション</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for standard in standards %}
+                    <tr data-standard-id="{{ standard.get('id', '') }}">
+                        <td>
+                            <input type="checkbox" class="standard-checkbox" value="{{ standard.get('id', '') }}">
+                        </td>
+                        <td>
+                            <strong>{{ standard.get('number', '') }}</strong>
+                            {% if standard.get('notes') %}
+                            <br><small class="text-muted">{{ standard.get('notes') }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-primary">{{ standard.get('type', '') }}</span>
+                        </td>
+                        <td>
+                            {% if standard.get('version') %}
+                                {{ standard.get('version') }}
+                            {% else %}
+                                <span class="text-muted">未指定</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% set status = standard.get('status', 'Unknown') %}
+                            {% if status == 'Active' %}
+                                <span class="badge bg-success status-badge">{{ status }}</span>
+                            {% elif status == 'Withdrawn' %}
+                                <span class="badge bg-danger status-badge">{{ status }}</span>
+                            {% elif status == 'Current' %}
+                                <span class="badge bg-info status-badge">{{ status }}</span>
+                            {% elif status == 'Published' %}
+                                <span class="badge bg-primary status-badge">{{ status }}</span>
+                            {% else %}
+                                <span class="badge bg-secondary status-badge">{{ status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if standard.get('directive') %}
+                                <small>{{ standard.get('directive') }}</small>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if standard.get('etsi_info') %}
+                                <button class="btn btn-sm btn-outline-info" onclick="showETSIInfo('{{ standard.get('id', '') }}')">
+                                    <i class="fas fa-info-circle"></i> 詳細
+                                </button>
+                            {% else %}
+                                <button class="btn btn-sm btn-outline-warning" onclick="checkETSI('{{ standard.get('id', '') }}', '{{ standard.get('number_part', '') }}')">
+                                    <i class="fas fa-search"></i> 確認
+                                </button>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <small>{{ standard.get('extracted_at', '')[:10] }}</small>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-outline-primary" onclick="editStandard('{{ standard.get('id', '') }}')">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-danger" onclick="deleteStandard('{{ standard.get('id', '') }}')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-warning text-center">
+            <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
+            <h4>標準規格が見つかりません</h4>
+            <p>PDFをアップロードして標準規格を抽出してください。</p>
+            <a href="/upload" class="btn btn-primary">
+                <i class="fas fa-upload"></i> PDFアップロード
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ETSI情報モーダル -->
+<div class="modal fade" id="etsiModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">ETSI情報詳細</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="etsiModalBody">
+                <!-- ETSI情報がここに表示される -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 編集モーダル -->
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">標準規格編集</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editForm">
+                    <input type="hidden" id="editStandardId">
+                    <div class="mb-3">
+                        <label for="editStatus" class="form-label">ステータス</label>
+                        <select id="editStatus" class="form-select">
+                            <option value="Active">Active</option>
+                            <option value="Withdrawn">Withdrawn</option>
+                            <option value="Current">Current</option>
+                            <option value="Published">Published</option>
+                            <option value="Superseded">Superseded</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editDirective" class="form-label">指令</label>
+                        <input type="text" id="editDirective" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editNotes" class="form-label">備考</label>
+                        <textarea id="editNotes" class="form-control" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                <button type="button" class="btn btn-primary" onclick="saveEdit()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// フィルター機能
+function clearFilters() {
+    document.getElementById('filterForm').reset();
+    window.location.href = '/results';
+}
+
+// 全選択/選択解除
+function toggleAll() {
+    const selectAll = document.getElementById('selectAllCheckbox');
+    const checkboxes = document.querySelectorAll('.standard-checkbox');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll.checked;
+    });
+}
+
+function selectAll() {
+    document.getElementById('selectAllCheckbox').checked = true;
+    toggleAll();
+}
+
+function selectNone() {
+    document.getElementById('selectAllCheckbox').checked = false;
+    toggleAll();
+}
+
+// データエクスポート
+function exportData(format) {
+    const selected = getSelectedStandards();
+    if (selected.length === 0) {
+        alert('エクスポートする標準規格を選択してください。');
+        return;
+    }
+    
+    window.location.href = `/api/export/${format}?ids=${selected.join(',')}`;
+}
+
+function getSelectedStandards() {
+    const checkboxes = document.querySelectorAll('.standard-checkbox:checked');
+    return Array.from(checkboxes).map(cb => cb.value);
+}
+
+// ETSI確認
+function checkETSI(standardId, standardNumber) {
+    if (!standardNumber) {
+        alert('標準規格番号が不明です。');
+        return;
+    }
+    
+    const button = event.target.closest('button');
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 確認中...';
+    button.disabled = true;
+    
+    fetch(`/api/etsi/${encodeURIComponent(standardNumber)}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // ETSI情報を表示
+                showETSIInfo(standardId, data.etsi_info);
+                // ボタンを更新
+                button.innerHTML = '<i class="fas fa-info-circle"></i> 詳細';
+                button.className = 'btn btn-sm btn-outline-info';
+                button.onclick = () => showETSIInfo(standardId);
+            } else {
+                alert('ETSI情報の取得に失敗しました: ' + (data.error || 'Unknown error'));
+                button.innerHTML = '<i class="fas fa-search"></i> 確認';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('ETSI情報の取得中にエラーが発生しました。');
+            button.innerHTML = '<i class="fas fa-search"></i> 確認';
+        })
+        .finally(() => {
+            button.disabled = false;
+        });
+}
+
+function checkAllETSI() {
+    const selected = getSelectedStandards();
+    if (selected.length === 0) {
+        alert('ETSI確認する標準規格を選択してください。');
+        return;
+    }
+    
+    if (!confirm(`選択された${selected.length}件の標準規格のETSI情報を確認しますか？`)) {
+        return;
+    }
+    
+    // 一括ETSI確認処理（実装は省略）
+    alert('一括ETSI確認機能は開発中です。');
+}
+
+// ETSI情報表示
+function showETSIInfo(standardId, etsiInfo = null) {
+    if (!etsiInfo) {
+        // サーバーから取得（実装は省略）
+        alert('ETSI情報の詳細表示機能は開発中です。');
+        return;
+    }
+    
+    const modalBody = document.getElementById('etsiModalBody');
+    
+    let html = '<div class="table-responsive">';
+    html += '<table class="table table-sm">';
+    html += `<tr><th>ステータス</th><td>${etsiInfo.status || 'N/A'}</td></tr>`;
+    html += `<tr><th>総バージョン数</th><td>${etsiInfo.total_versions || 0}</td></tr>`;
+    html += `<tr><th>最終更新</th><td>${etsiInfo.last_updated || 'N/A'}</td></tr>`;
+    html += '</table>';
+    
+    if (etsiInfo.versions && etsiInfo.versions.length > 0) {
+        html += '<h6>バージョン情報</h6>';
+        html += '<table class="table table-sm table-striped">';
+        html += '<thead><tr><th>識別子</th><th>ステータス</th><th>公開日</th></tr></thead>';
+        html += '<tbody>';
+        
+        etsiInfo.versions.forEach(version => {
+            html += '<tr>';
+            html += `<td>${version.identification || 'N/A'}</td>`;
+            html += `<td><span class="badge bg-info">${version.status || 'N/A'}</span></td>`;
+            html += `<td>${version.publication_date || 'N/A'}</td>`;
+            html += '</tr>';
+        });
+        
+        html += '</tbody></table>';
+    }
+    html += '</div>';
+    
+    modalBody.innerHTML = html;
+    
+    const modal = new bootstrap.Modal(document.getElementById('etsiModal'));
+    modal.show();
+}
+
+// 標準規格編集
+function editStandard(standardId) {
+    // 現在の値を取得してフォームに設定
+    const row = document.querySelector(`tr[data-standard-id="${standardId}"]`);
+    if (!row) return;
+    
+    document.getElementById('editStandardId').value = standardId;
+    
+    // 現在の値を設定（実装は省略）
+    
+    const modal = new bootstrap.Modal(document.getElementById('editModal'));
+    modal.show();
+}
+
+function saveEdit() {
+    const standardId = document.getElementById('editStandardId').value;
+    const status = document.getElementById('editStatus').value;
+    const directive = document.getElementById('editDirective').value;
+    const notes = document.getElementById('editNotes').value;
+    
+    const updateData = {
+        status: status,
+        directive: directive,
+        notes: notes
+    };
+    
+    fetch(`/api/standards/${standardId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            alert('標準規格を更新しました。');
+            location.reload();
+        } else {
+            alert('更新に失敗しました: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('更新中にエラーが発生しました。');
+    });
+}
+
+// 標準規格削除
+function deleteStandard(standardId) {
+    if (!confirm('この標準規格を削除しますか？')) {
+        return;
+    }
+    
+    fetch(`/api/standards/${standardId}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            alert('標準規格を削除しました。');
+            location.reload();
+        } else {
+            alert('削除に失敗しました: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('削除中にエラーが発生しました。');
+    });
+}
+
+// テーブルの初期化
+$(document).ready(function() {
+    // DataTablesの初期化（オプション）
+    if (typeof $.fn.DataTable !== 'undefined') {
+        $('#standardsTable').DataTable({
+            "language": {
+                "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Japanese.json"
+            },
+            "pageLength": 25,
+            "order": [[1, 'asc']],
+            "columnDefs": [
+                { "orderable": false, "targets": [0, 8] }
+            ]
+        });
+    }
+});
+</script>
+{% endblock %}

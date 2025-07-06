@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}PDFアップロード - Standard Version Checker{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h2><i class="fas fa-upload"></i> PDFアップロード</h2>
+        <p class="text-muted">ISO/IEC 17025認定証明書のPDFファイルをアップロードしてください。</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <form method="post" enctype="multipart/form-data" action="/upload">
+            <div class="upload-area">
+                <i class="fas fa-cloud-upload-alt fa-3x text-primary mb-3"></i>
+                <h4>PDFファイルを選択</h4>
+                <p class="text-muted">クリックしてファイルを選択するか、ドラッグ&ドロップしてください</p>
+                <input type="file" name="file" accept=".pdf" class="form-control mt-3" required>
+            </div>
+            
+            <div class="d-grid gap-2 mt-3">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="fas fa-upload"></i> アップロード & 解析開始
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="alert alert-info">
+            <h5><i class="fas fa-info-circle"></i> 注意事項</h5>
+            <ul class="mb-0">
+                <li>対応ファイル形式: PDF</li>
+                <li>最大ファイルサイズ: 10MB</li>
+                <li>ISO/IEC 17025認定証明書の形式に対応</li>
+                <li>処理時間はファイルサイズにより異なります</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-12">
+        <h4>処理フロー</h4>
+        <div class="row">
+            <div class="col-md-3 text-center">
+                <i class="fas fa-file-pdf fa-2x text-primary"></i>
+                <h6 class="mt-2">1. PDFアップロード</h6>
+                <p class="small text-muted">認定証明書をアップロード</p>
+            </div>
+            <div class="col-md-3 text-center">
+                <i class="fas fa-search fa-2x text-info"></i>
+                <h6 class="mt-2">2. テキスト抽出</h6>
+                <p class="small text-muted">PDFから標準規格を抽出</p>
+            </div>
+            <div class="col-md-3 text-center">
+                <i class="fas fa-list fa-2x text-success"></i>
+                <h6 class="mt-2">3. 標準規格リスト</h6>
+                <p class="small text-muted">抽出結果を一覧表示</p>
+            </div>
+            <div class="col-md-3 text-center">
+                <i class="fas fa-check-circle fa-2x text-warning"></i>
+                <h6 class="mt-2">4. ETSI確認</h6>
+                <p class="small text-muted">最新状況を確認</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    // ファイル選択時の処理
+    $('input[type="file"]').change(function() {
+        var fileName = $(this).val().split('\\').pop();
+        if (fileName) {
+            $(this).siblings('.upload-area').find('h4').text('選択されたファイル: ' + fileName);
+        }
+    });
+    
+    // ドラッグ&ドロップ処理
+    $('.upload-area').on('dragover', function(e) {
+        e.preventDefault();
+        $(this).addClass('bg-light');
+    });
+    
+    $('.upload-area').on('dragleave', function(e) {
+        e.preventDefault();
+        $(this).removeClass('bg-light');
+    });
+    
+    $('.upload-area').on('drop', function(e) {
+        e.preventDefault();
+        $(this).removeClass('bg-light');
+        
+        var files = e.originalEvent.dataTransfer.files;
+        if (files.length > 0) {
+            $('input[type="file"]')[0].files = files;
+            $(this).find('h4').text('選択されたファイル: ' + files[0].name);
+        }
+    });
+});
+</script>
+{% endblock %}

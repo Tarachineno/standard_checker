@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}ホーム - Standard Version Checker{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="jumbotron bg-primary text-white p-5 rounded">
+            <h1 class="display-4">Standard Version Checker</h1>
+            <p class="lead">ISO/IEC 17025のスコープ認定証明書から支援標準を抽出し、ETSIポータルと連携して最新状況を確認</p>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-file-pdf fa-3x text-primary mb-3"></i>
+                <h5 class="card-title">PDFアップロード</h5>
+                <p class="card-text">ISO/IEC 17025認定証明書のPDFファイルをアップロードして標準規格を抽出します。</p>
+                <a href="/upload" class="btn btn-primary">
+                    <i class="fas fa-upload"></i> アップロード
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-search fa-3x text-info mb-3"></i>
+                <h5 class="card-title">ETSI確認</h5>
+                <p class="card-text">ETSIポータルと連携して標準規格の最新状況を確認します。</p>
+                <a href="/etsi_check" class="btn btn-info">
+                    <i class="fas fa-search"></i> ETSI確認
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-list fa-3x text-success mb-3"></i>
+                <h5 class="card-title">結果一覧</h5>
+                <p class="card-text">抽出済みの標準規格一覧を表示し、フィルタリングや管理を行います。</p>
+                <a href="/results" class="btn btn-success">
+                    <i class="fas fa-list"></i> 結果一覧
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-5">
+    <div class="col-md-12">
+        <h3>機能概要</h3>
+        <div class="row">
+            <div class="col-md-6">
+                <h5><i class="fas fa-check-circle text-success"></i> 主な機能</h5>
+                <ul>
+                    <li>PDFから標準規格の自動抽出</li>
+                    <li>ETSIポータルとの連携</li>
+                    <li>標準規格の最新状況確認</li>
+                    <li>フィルタリング機能</li>
+                    <li>CSV/JSON形式での出力</li>
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <h5><i class="fas fa-cogs text-primary"></i> 対応フォーマット</h5>
+                <ul>
+                    <li>PDF (ISO/IEC 17025認定証明書)</li>
+                    <li>Excel出力</li>
+                    <li>CSV出力</li>
+                    <li>JSON API</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="alert alert-info">
+            <h5><i class="fas fa-info-circle"></i> 使用方法</h5>
+            <ol>
+                <li>「PDFアップロード」から認定証明書をアップロード</li>
+                <li>システムが自動的に標準規格を抽出</li>
+                <li>「ETSI確認」で最新状況を確認</li>
+                <li>「結果一覧」でフィルタリング・管理</li>
+            </ol>
+        </div>
+    </div>
+</div>
+{% endblock %}

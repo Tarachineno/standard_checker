@@ -1,0 +1,499 @@
+{% extends "base.html" %}
+
+{% block title %}ETSI検索結果 - Standard Version Checker{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <h2><i class="fas fa-search-plus"></i> ETSI検索結果</h2>
+            <div>
+                <a href="/etsi_check" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> 戻る
+                </a>
+                <button class="btn btn-primary" onclick="saveToRegistry()">
+                    <i class="fas fa-save"></i> レジストリに保存
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 検索情報 -->
+<div class="row mt-3">
+    <div class="col-md-12">
+        <div class="alert alert-info">
+            <div class="row">
+                <div class="col-md-6">
+                    <strong>検索対象:</strong> {{ standard_number }}
+                </div>
+                <div class="col-md-6">
+                    <strong>検索日時:</strong> {{ etsi_info.get('last_updated', 'N/A') }}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if etsi_info %}
+    {% if etsi_info.get('status') == 'Success' %}
+        <!-- 検索成功時の表示 -->
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-info-circle"></i> 基本情報</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <strong>ステータス:</strong>
+                                <span class="badge bg-success">{{ etsi_info.get('status', 'Unknown') }}</span>
+                            </div>
+                            <div class="col-md-3">
+                                <strong>総バージョン数:</strong>
+                                <span class="badge bg-info">{{ etsi_info.get('total_versions', 0) }}件</span>
+                            </div>
+                            <div class="col-md-3">
+                                <strong>標準規格番号:</strong>
+                                {{ standard_number }}
+                            </div>
+                            <div class="col-md-3">
+                                <strong>最終更新:</strong>
+                                {{ etsi_info.get('last_updated', 'N/A') }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- バージョン詳細 -->
+        {% if etsi_info.get('versions') %}
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-list"></i> バージョン詳細</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>識別子</th>
+                                        <th>ステータス</th>
+                                        <th>公開日</th>
+                                        <th>OJ参照</th>
+                                        <th>タイトル</th>
+                                        <th>アクション</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for version in etsi_info.get('versions', []) %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ version.get('identification', 'N/A') }}</strong>
+                                        </td>
+                                        <td>
+                                            {% set vstatus = version.get('status', 'Unknown') %}
+                                            {% if vstatus == 'Published' %}
+                                                <span class="badge bg-success">{{ vstatus }}</span>
+                                            {% elif vstatus == 'Current' %}
+                                                <span class="badge bg-primary">{{ vstatus }}</span>
+                                            {% elif vstatus == 'Withdrawn' %}
+                                                <span class="badge bg-danger">{{ vstatus }}</span>
+                                            {% elif vstatus == 'Superseded' %}
+                                                <span class="badge bg-warning">{{ vstatus }}</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">{{ vstatus }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if version.get('publication_date') %}
+                                                {{ version.get('publication_date') }}
+                                            {% else %}
+                                                <span class="text-muted">未指定</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if version.get('oj_reference') %}
+                                                <small>{{ version.get('oj_reference') }}</small>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if version.get('title') %}
+                                                <small>{{ version.get('title')[:100] }}{% if version.get('title')|length > 100 %}...{% endif %}</small>
+                                            {% else %}
+                                                <span class="text-muted">タイトルなし</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-info" onclick="showVersionDetails({{ loop.index0 }})">
+                                                <i class="fas fa-eye"></i> 詳細
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- 統計情報 -->
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-chart-bar"></i> 統計情報</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row" id="statisticsRow">
+                            <!-- 統計情報がJavaScriptで動的に生成される -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- アクション -->
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-tools"></i> アクション</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="btn-toolbar" role="toolbar">
+                            <div class="btn-group me-2" role="group">
+                                <button type="button" class="btn btn-success" onclick="exportETSIData('json')">
+                                    <i class="fas fa-download"></i> JSON出力
+                                </button>
+                                <button type="button" class="btn btn-success" onclick="exportETSIData('csv')">
+                                    <i class="fas fa-file-csv"></i> CSV出力
+                                </button>
+                                <button type="button" class="btn btn-info" onclick="copyToClipboard()">
+                                    <i class="fas fa-copy"></i> クリップボードにコピー
+                                </button>
+                            </div>
+                            <div class="btn-group me-2" role="group">
+                                <button type="button" class="btn btn-primary" onclick="saveToRegistry()">
+                                    <i class="fas fa-save"></i> レジストリに保存
+                                </button>
+                                <button type="button" class="btn btn-warning" onclick="scheduleUpdate()">
+                                    <i class="fas fa-clock"></i> 定期更新設定
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    {% else %}
+        <!-- 検索失敗時の表示 -->
+        <div class="row">
+            <div class="col-md-12">
+                <div class="alert alert-warning">
+                    <h4><i class="fas fa-exclamation-triangle"></i> 検索結果なし</h4>
+                    <p>標準規格番号「{{ standard_number }}」に対する情報が見つかりませんでした。</p>
+                    
+                    {% if etsi_info.get('error') %}
+                    <hr>
+                    <strong>エラー詳細:</strong> {{ etsi_info.get('error') }}
+                    {% endif %}
+                    
+                    <hr>
+                    <h5>考えられる原因:</h5>
+                    <ul>
+                        <li>標準規格番号が正しくない</li>
+                        <li>ETSIデータベースに該当する標準規格が存在しない</li>
+                        <li>ネットワーク接続の問題</li>
+                        <li>ETSIポータルの一時的な問題</li>
+                    </ul>
+                    
+                    <div class="mt-3">
+                        <a href="/etsi_check?standard_number={{ standard_number }}" class="btn btn-primary">
+                            <i class="fas fa-redo"></i> 再検索
+                        </a>
+                        <a href="/etsi_check" class="btn btn-secondary">
+                            <i class="fas fa-search"></i> 新しい検索
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+{% else %}
+    <!-- ETSI情報がない場合 -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="alert alert-danger">
+                <h4><i class="fas fa-times-circle"></i> エラー</h4>
+                <p>ETSI検索中にエラーが発生しました。</p>
+                <a href="/etsi_check" class="btn btn-primary">
+                    <i class="fas fa-arrow-left"></i> ETSI検索に戻る
+                </a>
+            </div>
+        </div>
+    </div>
+{% endif %}
+
+<!-- バージョン詳細モーダル -->
+<div class="modal fade" id="versionModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">バージョン詳細</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="versionModalBody">
+                <!-- バージョン詳細がここに表示される -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ETSI情報を格納
+const etsiData = {{ etsi_info | tojson | safe }};
+const standardNumber = "{{ standard_number }}";
+
+// 統計情報の生成
+function generateStatistics() {
+    if (!etsiData || !etsiData.versions) return;
+    
+    const versions = etsiData.versions;
+    const statusCounts = {};
+    let latestDate = null;
+    
+    // ステータス別集計
+    versions.forEach(version => {
+        const status = version.status || 'Unknown';
+        statusCounts[status] = (statusCounts[status] || 0) + 1;
+        
+        // 最新日付を取得
+        if (version.publication_date) {
+            const date = new Date(version.publication_date);
+            if (!latestDate || date > latestDate) {
+                latestDate = date;
+            }
+        }
+    });
+    
+    // 統計情報をHTMLに表示
+    const statsRow = document.getElementById('statisticsRow');
+    let html = '';
+    
+    // 総バージョン数
+    html += `
+        <div class="col-md-3">
+            <div class="text-center">
+                <h3 class="text-primary">${versions.length}</h3>
+                <p class="mb-0">総バージョン数</p>
+            </div>
+        </div>
+    `;
+    
+    // ステータス別件数
+    Object.entries(statusCounts).forEach(([status, count]) => {
+        const badgeClass = getBadgeClass(status);
+        html += `
+            <div class="col-md-3">
+                <div class="text-center">
+                    <h3 class="text-${badgeClass}">${count}</h3>
+                    <p class="mb-0">${status}</p>
+                </div>
+            </div>
+        `;
+    });
+    
+    // 最新日付
+    if (latestDate) {
+        html += `
+            <div class="col-md-3">
+                <div class="text-center">
+                    <h5 class="text-info">${latestDate.toLocaleDateString()}</h5>
+                    <p class="mb-0">最新公開日</p>
+                </div>
+            </div>
+        `;
+    }
+    
+    statsRow.innerHTML = html;
+}
+
+function getBadgeClass(status) {
+    switch (status) {
+        case 'Published': return 'success';
+        case 'Current': return 'primary';
+        case 'Withdrawn': return 'danger';
+        case 'Superseded': return 'warning';
+        default: return 'secondary';
+    }
+}
+
+// バージョン詳細表示
+function showVersionDetails(index) {
+    if (!etsiData.versions || !etsiData.versions[index]) return;
+    
+    const version = etsiData.versions[index];
+    const modalBody = document.getElementById('versionModalBody');
+    
+    let html = '<div class="table-responsive">';
+    html += '<table class="table table-borderless">';
+    
+    Object.entries(version).forEach(([key, value]) => {
+        if (value && key !== 'raw_data') {
+            const displayKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            html += `<tr><th class="w-25">${displayKey}:</th><td>${value}</td></tr>`;
+        }
+    });
+    
+    html += '</table></div>';
+    
+    // 生データがある場合は表示
+    if (version.raw_data) {
+        html += '<hr><h6>生データ</h6>';
+        html += '<pre class="bg-light p-3 rounded"><code>' + JSON.stringify(version.raw_data, null, 2) + '</code></pre>';
+    }
+    
+    modalBody.innerHTML = html;
+    
+    const modal = new bootstrap.Modal(document.getElementById('versionModal'));
+    modal.show();
+}
+
+// データエクスポート
+function exportETSIData(format) {
+    const data = {
+        standard_number: standardNumber,
+        search_time: new Date().toISOString(),
+        etsi_info: etsiData
+    };
+    
+    if (format === 'json') {
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        downloadFile(blob, `etsi_${standardNumber}_${new Date().toISOString().split('T')[0]}.json`);
+    } else if (format === 'csv') {
+        exportToCSV(data);
+    }
+}
+
+function exportToCSV(data) {
+    if (!data.etsi_info.versions) return;
+    
+    const csv = convertToCSV(data.etsi_info.versions);
+    const blob = new Blob([csv], { type: 'text/csv' });
+    downloadFile(blob, `etsi_${standardNumber}_${new Date().toISOString().split('T')[0]}.csv`);
+}
+
+function convertToCSV(data) {
+    if (!data.length) return '';
+    
+    const headers = Object.keys(data[0]).filter(key => key !== 'raw_data');
+    const csvContent = [
+        headers.join(','),
+        ...data.map(row => headers.map(header => {
+            const value = row[header] || '';
+            return `"${String(value).replace(/"/g, '""')}"`;
+        }).join(','))
+    ].join('\n');
+    
+    return csvContent;
+}
+
+function downloadFile(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+// クリップボードにコピー
+function copyToClipboard() {
+    const data = {
+        standard_number: standardNumber,
+        etsi_info: etsiData
+    };
+    
+    navigator.clipboard.writeText(JSON.stringify(data, null, 2))
+        .then(() => {
+            alert('ETSI情報をクリップボードにコピーしました。');
+        })
+        .catch(err => {
+            console.error('クリップボードコピーエラー:', err);
+            alert('クリップボードへのコピーに失敗しました。');
+        });
+}
+
+// レジストリに保存
+function saveToRegistry() {
+    if (!etsiData) {
+        alert('保存するETSI情報がありません。');
+        return;
+    }
+    
+    const standardData = {
+        number: `EN ${standardNumber}:${new Date().getFullYear()}`, // 仮の値
+        type: 'EN',
+        number_part: standardNumber,
+        version: new Date().getFullYear().toString(),
+        status: 'Active',
+        source: 'ETSI',
+        etsi_info: etsiData,
+        extracted_at: new Date().toISOString()
+    };
+    
+    fetch('/api/standards', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(standardData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            alert('標準規格をレジストリに保存しました。');
+            
+            // 結果一覧ページに移動するか確認
+            if (confirm('結果一覧ページに移動しますか？')) {
+                window.location.href = '/results';
+            }
+        } else {
+            alert('保存に失敗しました: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('保存中にエラーが発生しました。');
+    });
+}
+
+// 定期更新設定
+function scheduleUpdate() {
+    alert('定期更新機能は開発中です。');
+}
+
+// ページ読み込み時の処理
+document.addEventListener('DOMContentLoaded', function() {
+    generateStatistics();
+});
+</script>
+{% endblock %}

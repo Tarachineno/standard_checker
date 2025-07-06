@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}エラー - Standard Version Checker{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="text-center">
+            <i class="fas fa-exclamation-triangle fa-5x text-danger mb-4"></i>
+            <h1 class="display-4">エラーが発生しました</h1>
+            <p class="lead text-muted">申し訳ございません。処理中にエラーが発生しました。</p>
+        </div>
+        
+        {% if error %}
+        <div class="alert alert-danger mt-4">
+            <h5><i class="fas fa-bug"></i> エラー詳細</h5>
+            <p class="mb-0"><code>{{ error }}</code></p>
+        </div>
+        {% endif %}
+        
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5><i class="fas fa-lightbulb"></i> 対処方法</h5>
+            </div>
+            <div class="card-body">
+                <ul>
+                    <li>ページを再読み込みしてみてください</li>
+                    <li>アップロードするファイルが正しい形式（PDF）であることを確認してください</li>
+                    <li>ファイルサイズが10MB以下であることを確認してください</li>
+                    <li>インターネット接続を確認してください</li>
+                    <li>しばらく時間をおいてから再度お試しください</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="text-center mt-4">
+            <a href="/" class="btn btn-primary btn-lg">
+                <i class="fas fa-home"></i> ホームに戻る
+            </a>
+            <button class="btn btn-secondary btn-lg ms-2" onclick="history.back()">
+                <i class="fas fa-arrow-left"></i> 前のページに戻る
+            </button>
+        </div>
+        
+        <div class="mt-5">
+            <h5>問題が解決しない場合</h5>
+            <p class="text-muted">
+                継続的に問題が発生する場合は、システム管理者にお問い合わせください。
+                エラーの詳細と実行した操作内容をお知らせいただけると、迅速な対応が可能です。
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}
