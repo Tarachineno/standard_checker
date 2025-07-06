@@ -1,0 +1,325 @@
+{% extends "base.html" %}
+
+{% block title %}ETSI確認 - Standard Version Checker{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h2><i class="fas fa-search"></i> ETSI確認</h2>
+        <p class="text-muted">ETSIポータルで標準規格の最新情報を確認します。</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-globe"></i> 標準規格検索</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="/etsi_check" id="etsiSearchForm">
+                    <div class="mb-3">
+                        <label for="standard_number" class="form-label">標準規格番号</label>
+                        <input type="text" 
+                               class="form-control" 
+                               id="standard_number" 
+                               name="standard_number" 
+                               placeholder="例: 301 489-17" 
+                               required>
+                        <div class="form-text">
+                            標準規格番号を入力してください（例: 301 489-17, 62368-1, 55032）
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="all_versions" name="all_versions" checked>
+                            <label class="form-check-label" for="all_versions">
+                                全バージョンを検索
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg" id="searchButton">
+                            <i class="fas fa-search"></i> ETSI検索開始
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="alert alert-info">
+            <h5><i class="fas fa-info-circle"></i> ETSI検索について</h5>
+            <ul class="mb-0">
+                <li>ETSIポータル（portal.etsi.org）から最新の標準規格情報を取得します</li>
+                <li>検索には数秒から数十秒かかる場合があります</li>
+                <li>標準規格番号は数字部分のみ入力してください（EN、IECなどの接頭辞は不要）</li>
+                <li>全バージョンを選択すると、該当する全てのバージョン情報を取得します</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- 検索例 -->
+<div class="row mt-4">
+    <div class="col-md-12">
+        <h4>検索例</h4>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h6 class="card-title">EMC標準</h6>
+                        <p class="card-text">
+                            <strong>301 489-17</strong><br>
+                            <small class="text-muted">EN 301 489-17 (EMC requirements for broadband data transmission systems)</small>
+                        </p>
+                        <button class="btn btn-sm btn-outline-primary" onclick="searchExample('301 489-17')">
+                            <i class="fas fa-search"></i> 検索
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h6 class="card-title">安全標準</h6>
+                        <p class="card-text">
+                            <strong>62368-1</strong><br>
+                            <small class="text-muted">IEC 62368-1 (Audio/video, information and communication technology equipment)</small>
+                        </p>
+                        <button class="btn btn-sm btn-outline-primary" onclick="searchExample('62368-1')">
+                            <i class="fas fa-search"></i> 検索
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h6 class="card-title">EMC標準</h6>
+                        <p class="card-text">
+                            <strong>55032</strong><br>
+                            <small class="text-muted">EN 55032 (EMC requirements for multimedia equipment)</small>
+                        </p>
+                        <button class="btn btn-sm btn-outline-primary" onclick="searchExample('55032')">
+                            <i class="fas fa-search"></i> 検索
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 履歴 -->
+<div class="row mt-4">
+    <div class="col-md-12">
+        <h4>最近の検索履歴</h4>
+        <div class="table-responsive">
+            <table class="table table-sm table-striped" id="searchHistory">
+                <thead>
+                    <tr>
+                        <th>標準規格番号</th>
+                        <th>検索日時</th>
+                        <th>結果</th>
+                        <th>アクション</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- 履歴データがJavaScriptで動的に追加される -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ローディングモーダル -->
+<div class="modal fade" id="loadingModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body text-center">
+                <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <h5>ETSI検索中...</h5>
+                <p class="text-muted">ETSIポータルから情報を取得しています。しばらくお待ちください。</p>
+                <div class="progress">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                         role="progressbar" 
+                         style="width: 100%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// フォーム送信時の処理
+document.getElementById('etsiSearchForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const standardNumber = document.getElementById('standard_number').value.trim();
+    if (!standardNumber) {
+        alert('標準規格番号を入力してください。');
+        return;
+    }
+    
+    // ローディングモーダルを表示
+    const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
+    loadingModal.show();
+    
+    // 検索ボタンを無効化
+    const searchButton = document.getElementById('searchButton');
+    searchButton.disabled = true;
+    searchButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 検索中...';
+    
+    // API経由で検索実行
+    fetch(`/api/etsi/${encodeURIComponent(standardNumber)}`)
+        .then(response => response.json())
+        .then(data => {
+            // 検索履歴に追加
+            addToSearchHistory(standardNumber, data);
+            
+            // 結果ページにリダイレクト
+            const params = new URLSearchParams({
+                standard_number: standardNumber,
+                result: JSON.stringify(data)
+            });
+            window.location.href = `/etsi_results?${params.toString()}`;
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('ETSI検索中にエラーが発生しました: ' + error.message);
+        })
+        .finally(() => {
+            // ローディングモーダルを非表示
+            loadingModal.hide();
+            
+            // 検索ボタンを有効化
+            searchButton.disabled = false;
+            searchButton.innerHTML = '<i class="fas fa-search"></i> ETSI検索開始';
+        });
+});
+
+// 検索例のクリック処理
+function searchExample(standardNumber) {
+    document.getElementById('standard_number').value = standardNumber;
+    document.getElementById('etsiSearchForm').dispatchEvent(new Event('submit'));
+}
+
+// 検索履歴管理
+function loadSearchHistory() {
+    const history = JSON.parse(localStorage.getItem('etsiSearchHistory') || '[]');
+    const tbody = document.querySelector('#searchHistory tbody');
+    
+    tbody.innerHTML = '';
+    
+    if (history.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">検索履歴がありません</td></tr>';
+        return;
+    }
+    
+    history.slice(0, 10).forEach(item => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td><strong>${item.standardNumber}</strong></td>
+            <td><small>${new Date(item.timestamp).toLocaleString()}</small></td>
+            <td>
+                ${item.success ? 
+                    `<span class="badge bg-success">成功</span> (${item.versionsCount || 0}件)` : 
+                    '<span class="badge bg-danger">失敗</span>'
+                }
+            </td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="searchExample('${item.standardNumber}')">
+                    <i class="fas fa-redo"></i> 再検索
+                </button>
+                ${item.success ? 
+                    `<button class="btn btn-sm btn-outline-info ms-1" onclick="viewResults('${item.standardNumber}')">
+                        <i class="fas fa-eye"></i> 結果
+                    </button>` : ''
+                }
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function addToSearchHistory(standardNumber, result) {
+    const history = JSON.parse(localStorage.getItem('etsiSearchHistory') || '[]');
+    
+    const item = {
+        standardNumber: standardNumber,
+        timestamp: new Date().toISOString(),
+        success: result.status === 'success',
+        versionsCount: result.etsi_info ? result.etsi_info.total_versions : 0,
+        result: result
+    };
+    
+    // 重複を削除
+    const filteredHistory = history.filter(h => h.standardNumber !== standardNumber);
+    
+    // 新しいアイテムを先頭に追加
+    filteredHistory.unshift(item);
+    
+    // 最大20件まで保存
+    const updatedHistory = filteredHistory.slice(0, 20);
+    
+    localStorage.setItem('etsiSearchHistory', JSON.stringify(updatedHistory));
+    
+    // 履歴テーブルを更新
+    loadSearchHistory();
+}
+
+function viewResults(standardNumber) {
+    const history = JSON.parse(localStorage.getItem('etsiSearchHistory') || '[]');
+    const item = history.find(h => h.standardNumber === standardNumber);
+    
+    if (item && item.result) {
+        const params = new URLSearchParams({
+            standard_number: standardNumber,
+            result: JSON.stringify(item.result)
+        });
+        window.location.href = `/etsi_results?${params.toString()}`;
+    }
+}
+
+// 標準規格番号の入力補助
+document.getElementById('standard_number').addEventListener('input', function(e) {
+    let value = e.target.value;
+    
+    // 数字、スペース、ハイフンのみを許可
+    value = value.replace(/[^0-9\s\-]/g, '');
+    
+    e.target.value = value;
+});
+
+// ページ読み込み時の処理
+document.addEventListener('DOMContentLoaded', function() {
+    loadSearchHistory();
+    
+    // URLパラメータから標準規格番号を取得
+    const urlParams = new URLSearchParams(window.location.search);
+    const standardNumber = urlParams.get('standard_number');
+    
+    if (standardNumber) {
+        document.getElementById('standard_number').value = standardNumber;
+    }
+});
+
+// キーボードショートカット
+document.addEventListener('keydown', function(e) {
+    // Ctrl+Enter で検索実行
+    if (e.ctrlKey && e.key === 'Enter') {
+        document.getElementById('etsiSearchForm').dispatchEvent(new Event('submit'));
+    }
+});
+</script>
+{% endblock %}
