@@ -75,15 +75,15 @@ async def etsi_check_page(request: Request):
 async def etsi_check_process(request: Request, standard_number: str = Form(...)):
     """ETSI確認処理"""
     try:
-        crawler = ETSICrawler()
-        etsi_info = crawler.search_standard(standard_number)
-        
-        return templates.TemplateResponse("etsi_results.html", {
-            "request": request,
-            "standard_number": standard_number,
-            "etsi_info": etsi_info
-        })
-        
+        with ETSICrawler() as crawler:
+            etsi_info = crawler.search_standard(standard_number)
+            
+            return templates.TemplateResponse("etsi_results.html", {
+                "request": request,
+                "standard_number": standard_number,
+                "etsi_info": etsi_info
+            })
+            
     except Exception as e:
         return templates.TemplateResponse("error.html", {
             "request": request,

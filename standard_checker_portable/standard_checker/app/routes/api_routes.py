@@ -63,15 +63,13 @@ async def get_standards():
 async def get_etsi_info(standard_number: str):
     """指定された標準規格のETSI情報を取得"""
     try:
-        crawler = ETSICrawler()
-        etsi_info = crawler.search_standard(standard_number)
-        
-        return JSONResponse(content={
-            "status": "success",
-            "standard_number": standard_number,
-            "etsi_info": etsi_info
-        })
-        
+        with ETSICrawler() as crawler:
+            etsi_info = crawler.search_standard(standard_number)
+            return JSONResponse(content={
+                "status": "success",
+                "standard_number": standard_number,
+                "etsi_info": etsi_info
+            })
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

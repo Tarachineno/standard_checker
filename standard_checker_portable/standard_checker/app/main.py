@@ -33,11 +33,35 @@ def create_directories():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """アプリケーションのライフサイクル管理"""
+    import psutil
+    import signal
     # 起動時
     create_directories()
     print("Standard_Version_Checker が起動しました")
     yield
     # シャットダウン時
+    try:
+        # ChromeDriverプロセスを終了
+        for proc in psutil.process_iter(['pid', 'name']):
+            if 'chromedriver' in proc.info['name'].lower():
+                try:
+                    os.kill(proc.info['pid'], signal.SIGTERM)
+                except:
+                    pass
+        # 一時ディレクトリのクリーンアップ
+        import tempfile
+        import shutil
+        temp_dir = tempfile.gettempdir()
+        for item in os.listdir(temp_dir):
+            if item.startswith('tmp'):
+                try:
+                    path = os.path.join(temp_dir, item)
+                    if os.path.isdir(path):
+                        shutil.rmtree(path, ignore_errors=True)
+                except:
+                    pass
+    except Exception as e:
+        print(f"クリーンアップ中にエラーが発生: {e}")
     print("Standard_Version_Checker がシャットダウンしました")
 
 # アプリケーション初期化

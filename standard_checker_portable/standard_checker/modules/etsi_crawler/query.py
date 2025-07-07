@@ -28,7 +28,8 @@ class ETSICrawler:
         self.search_url = "https://portal.etsi.org/webapp/WorkProgram/Frame_WorkItemList.asp"
         self.session = requests.Session()
         self.driver = None
-        self._user_data_dir = None  # 追加: user-data-dirのパス
+        self._user_data_dir = None
+        self._setup_complete = False
         # リクエストヘッダー設定
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
@@ -36,33 +37,68 @@ class ETSICrawler:
     
     def __enter__(self):
         if self.use_selenium:
-            self._setup_driver()
+            try:
+                self._setup_driver()
+                self._setup_complete = True
+            except Exception as e:
+                self.logger.error(f"Seleniumドライバー初期化エラー: {str(e)}")
+                self.cleanup()
+                raise
         return self
     
     def __exit__(self, exc_type, exc_val, exc_tb):
+        self.cleanup()
+    
+    def cleanup(self):
+        """リソースのクリーンアップ"""
         import shutil
-        if self.driver:
-            self.driver.quit()
-        if self._user_data_dir:
-            shutil.rmtree(self._user_data_dir, ignore_errors=True)
-            self._user_data_dir = None
+        try:
+            if self.driver:
+                try:
+                    self.driver.quit()
+                except Exception as e:
+                    self.logger.error(f"ドライバー終了エラー: {str(e)}")
+                finally:
+                    self.driver = None
+            
+            if self._user_data_dir:
+                try:
+                    shutil.rmtree(self._user_data_dir, ignore_errors=True)
+                except Exception as e:
+                    self.logger.error(f"一時ディレクトリ削除エラー: {str(e)}")
+                finally:
+                    self._user_data_dir = None
+            
+            self._setup_complete = False
+        except Exception as e:
+            self.logger.error(f"クリーンアップエラー: {str(e)}")
     
     def _setup_driver(self):
         """Seleniumドライバーのセットアップ"""
         import tempfile
         import shutil
+        import os
+        from selenium.webdriver.chrome.service import Service
         from selenium.webdriver.chrome.options import Options
-        chrome_options = Options()
-        chrome_options.add_argument('--headless')
-        chrome_options.add_argument('--no-sandbox')
-        chrome_options.add_argument('--disable-dev-shm-usage')
-        chrome_options.add_argument('--disable-gpu')
-        chrome_options.add_argument('--window-size=1920,1080')
-        # 毎回一意なuser-data-dirを指定
-        self._user_data_dir = tempfile.mkdtemp()
-        chrome_options.add_argument(f'--user-data-dir={self._user_data_dir}')
+        
+        # 既存のドライバーをクリーンアップ
+        self.cleanup()
+        
         try:
-            self.driver = webdriver.Chrome(options=chrome_options)
+            chrome_options = Options()
+            chrome_options.add_argument('--headless')
+            chrome_options.add_argument('--no-sandbox')
+            chrome_options.add_argument('--disable-dev-shm-usage')
+            chrome_options.add_argument('--disable-gpu')
+            chrome_options.add_argument('--window-size=1920,1080')
+            
+            # プロセスごとに一意な一時ディレクトリを生成
+            self._user_data_dir = tempfile.mkdtemp(prefix=f'chrome_user_data_{os.getpid()}_')
+            chrome_options.add_argument(f'--user-data-dir={self._user_data_dir}')
+            
+            # ChromeDriverサービスを設定
+            service = Service()
+            self.driver = webdriver.Chrome(service=service, options=chrome_options)
             self.driver.implicitly_wait(10)
             self.logger.info("Selenium Chromeドライバーを初期化しました")
         except Exception as e:
@@ -258,7 +294,7 @@ class ETSICrawler:
                 'message': '検索結果が見つかりませんでした'
             }
     
-    def _parse_search_results_requests(self, soup: BeautifulSoup, standard_number: str) -> Dict:
+    def _search_with_requests(self, standard_number: str) -> Dict:
         """requestsで取得した検索結果を解析"""
         return self._parse_results_table(soup)
     
