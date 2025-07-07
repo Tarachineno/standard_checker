@@ -7,17 +7,12 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from pathlib import Path
 import sys
-
-# プロジェクトルートをパスに追加
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
-
 from modules.pdf_parser.parser import PDFParser
 from modules.standards.registry import StandardRegistry
 from modules.etsi_crawler.query import ETSICrawler
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
+templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
 
 @router.get("/", response_class=HTMLResponse)
 async def index(request: Request):

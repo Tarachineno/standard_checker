@@ -25,10 +25,10 @@ class ETSICrawler:
         self.logger = logging.getLogger(__name__)
         self.use_selenium = use_selenium
         self.base_url = "https://portal.etsi.org"
-        self.search_url = "https://portal.etsi.org/webapp/workprogram/Report_WorkItem.asp"
+        self.search_url = "https://portal.etsi.org/webapp/WorkProgram/Frame_WorkItemList.asp"
         self.session = requests.Session()
         self.driver = None
-        
+        self._user_data_dir = None  # 追加: user-data-dirのパス
         # リクエストヘッダー設定
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
@@ -40,25 +40,36 @@ class ETSICrawler:
         return self
     
     def __exit__(self, exc_type, exc_val, exc_tb):
+        import shutil
         if self.driver:
             self.driver.quit()
+        if self._user_data_dir:
+            shutil.rmtree(self._user_data_dir, ignore_errors=True)
+            self._user_data_dir = None
     
     def _setup_driver(self):
         """Seleniumドライバーのセットアップ"""
+        import tempfile
+        import shutil
+        from selenium.webdriver.chrome.options import Options
+        chrome_options = Options()
+        chrome_options.add_argument('--headless')
+        chrome_options.add_argument('--no-sandbox')
+        chrome_options.add_argument('--disable-dev-shm-usage')
+        chrome_options.add_argument('--disable-gpu')
+        chrome_options.add_argument('--window-size=1920,1080')
+        # 毎回一意なuser-data-dirを指定
+        self._user_data_dir = tempfile.mkdtemp()
+        chrome_options.add_argument(f'--user-data-dir={self._user_data_dir}')
         try:
-            chrome_options = Options()
-            chrome_options.add_argument('--headless')
-            chrome_options.add_argument('--no-sandbox')
-            chrome_options.add_argument('--disable-dev-shm-usage')
-            chrome_options.add_argument('--disable-gpu')
-            chrome_options.add_argument('--window-size=1920,1080')
-            
             self.driver = webdriver.Chrome(options=chrome_options)
             self.driver.implicitly_wait(10)
-            
-            self.logger.info("Seleniumドライバーを初期化しました")
-            
+            self.logger.info("Selenium Chromeドライバーを初期化しました")
         except Exception as e:
+            # 失敗時はディレクトリを削除
+            if self._user_data_dir:
+                shutil.rmtree(self._user_data_dir, ignore_errors=True)
+                self._user_data_dir = None
             self.logger.error(f"Seleniumドライバー初期化エラー: {str(e)}")
             raise
     
@@ -164,21 +175,61 @@ class ETSICrawler:
     def _search_with_requests(self, standard_number: str) -> Dict:
         """requestsを使用してETSIポータルを検索"""
         try:
-            # 検索パラメータ
+            # 検索パラメータ（実際のクエリに合わせて修正）
             params = {
-                'qETSIDeliverableNumber': standard_number,
-                'qETSIAllVersions': 'on',
-                'qETSISearchButton': 'Search'
+                'SearchPage': 'TRUE',
+                'qETSI_STANDARD_TYPE': '',
+                'qETSI_NUMBER': standard_number,
+                'qTB_ID': '',
+                'qINCLUDE_SUB_TB': 'TRUE',
+                'includeNonActiveTB': 'FALSE',
+                'qWKI_REFERENCE': '',
+                'qTITLE': '',
+                'qSCOPE': '',
+                'qCURRENT_STATE_CODE': '',
+                'qSTOP_FLG': 'N',
+                'qSTART_CURRENT_STATUS_CODE': '',
+                'qEND_CURRENT_STATUS_CODE': '',
+                'qFROM_MIL_DAY': '',
+                'qFROM_MIL_MONTH': '',
+                'qFROM_MIL_YEAR': '',
+                'qTO_MIL_DAY': '',
+                'qTO_MIL_MONTH': '',
+                'qTO_MIL_YEAR': '',
+                'qOPERATOR_TS': '',
+                'qRAPTR_NAME': '',
+                'qRAPTR_ORGANISATION': '',
+                'qKEYWORD_BOOLEAN': 'OR',
+                'qKEYWORD': '',
+                'qPROJECT_BOOLEAN': 'OR',
+                'qPROJECT_CODE': '',
+                'includeSubProjectCode': 'FALSE',
+                'qSTF_List': '',
+                'qDIRECTIVE': '',
+                'qMandate_List': '',
+                'qCLUSTER_BOOLEAN': 'OR',
+                'qCLUSTER': '',
+                'qFREQUENCIES_BOOLEAN': 'OR',
+                'qFREQUENCIES': '',
+                'qFreqLow': '',
+                'qFreqLowUnit': '1000',
+                'qFreqHigh': '',
+                'qFreqHighUnit': '1000',
+                'AspectComments': '',
+                'qSORT': 'HIGHVERSION',
+                'qREPORT_TYPE': 'SUMMARY',
+                'optDisplay': '10',
+                'titleType': 'all',
+                'butExpertSearch': '  Search  '
             }
-            
+            from urllib.parse import urlencode
+            print("[ETSIクエリ] " + self.search_url + "?" + urlencode(params))
             # 検索実行
             response = self.session.get(self.search_url, params=params, timeout=30)
             response.raise_for_status()
-            
             # 結果を解析
             soup = BeautifulSoup(response.content, 'html.parser')
             return self._parse_search_results_requests(soup, standard_number)
-            
         except requests.exceptions.RequestException as e:
             self.logger.error(f"HTTP検索エラー: {str(e)}")
             return {
